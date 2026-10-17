@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "color_hal.h"
 
 #define FILENAME_TODO "raster_todo.dat"
 #define FILENAME_TASKS_TEMP "raster_tasks.tmp"
@@ -89,29 +90,54 @@ int cmd_task(int argc, char *argv[]) { //CLI操作 一共有 add list remove edi
     }
     
     //———————————————————————————————————————————————————————————————————————————
-    else if (strcmp(argv[1], "list") == 0) { //列表
-        FILE *todo5 = fopen(FILENAME_TODO, "r");
-        if (todo5 == NULL) {
-            printf("NO CONTEXT\n");
-            return 1;
-        }
+    else if (strcmp(argv[1], "list") == 0) {
+            FILE *todo5 = fopen(FILENAME_TODO, "r");
+            if (todo5 == NULL) {
+                set_color(COLOR_RED);
+                printf("NO CONTEXT\n");
+                reset_color();
+                return 1;
+            }
 
-        char buffer[256];
-        int id = 1;
-        printf("----- todo list -----\n");
-        // 修复原代码中 fgets 处未闭合的括号
-        while (fgets(buffer, sizeof(buffer), todo5) != NULL) {
-            char *title = strchr(buffer, '|');
-            printf("%d. %s", id++, title ? title + 1 : buffer);
-        }
+            char buffer[256];
+            int id = 1;
+            time_t now = time(NULL);
 
-        if (id == 1) {
-            printf("(Empty)\n");
-        }
+            set_color(COLOR_BLUE);
+            printf("----- todo list -----\n");
+            reset_color();
 
-        fclose(todo5);
-    }
-    
+            while (fgets(buffer, sizeof(buffer), todo5) != NULL) {
+                long task_time = strtol(buffer, NULL, 10);
+                char *title = strchr(buffer, '|');
+                char *display_text = title ? title + 1 : buffer;
+
+                // 根据任务已经存在的时间动态上色
+                if (task_time > 0) {
+                    long age = now - task_time;
+                    if (age >= 36 * 3600) {
+                        set_color(COLOR_RED);    // 超过 36 小时（快过期了）：红色警告
+                    } else if (age >= 24 * 3600) {
+                        set_color(COLOR_YELLOW); // 超过 24 小时：黄色提醒
+                    } else {
+                        set_color(COLOR_GREEN);  // 24 小时内的新任务：绿色
+                    }
+                } else {
+                    set_color(COLOR_GREEN);      // 兼容没有时间戳的旧数据
+                }
+
+                printf("%d. %s", id++, display_text);
+                reset_color(); // 每打完一行恢复默认颜色
+            }
+
+            if (id == 1) {
+                set_color(COLOR_YELLOW);
+                printf("(Empty)\n");
+                reset_color();
+            }
+
+            fclose(todo5);
+        }
     //————————————————————————————————————————————————————————————————————————————————
     else if (strcmp(argv[1], "remove") == 0) { //删除
             if (argc < 3) {
