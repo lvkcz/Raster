@@ -7,7 +7,11 @@ typedef enum {
     COLOR_GREEN,
     COLOR_YELLOW,
     COLOR_BLUE
+    
 } AppColor;
+
+void set_color(AppColor color);
+void reset_color(void);
 
 #if defined(_WIN32)
     #include <windows.h>

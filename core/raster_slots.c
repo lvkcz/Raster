@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define FILENAME_TODO "raster_todo.dat"
 #define FILENAME_TASKS_TEMP "raster_tasks.tmp"
@@ -46,30 +47,49 @@ int stack_task(void) {
     return task_num;
 }
 
-int time_task(void) {
-    // 48小时没打勾自动删除
-    return 0;
-}
 
-int cmd_task(int argc, char *argv[]) {
+int cmd_task(int argc, char *argv[]) { //CLI操作 一共有 add list remove edit done search help(没写)七种模式
+
     if (argc < 2) return 1;
-
-    if (strcmp(argv[1], "add") == 0) {
+//——————————————————————————————————————————————————————————————————————————————————
+    if (strcmp(argv[1], "add") == 0) { //添加task 最大5个
         if (argc < 3) {
             printf("Error: PLEASE INPUT TASK TITLE\n");
             return 1;
-        } else {
+        }
+        
+        
+        FILE *check = fopen(FILENAME_TODO, "r");
+                int count = 0;
+                if (check != NULL) {
+                    char buffer[256];
+                    while (fgets(buffer, sizeof(buffer), check) != NULL) {
+                        count++;
+                    }
+                    fclose(check);
+                }
+
+                // 2. 判断是否达到 MaxTASKSIZE (5个)
+                if (count >= MaxTASKSIZE) {
+                    printf("Error: Todo list is full (Max %d tasks).\n", MaxTASKSIZE);
+                    return 1;
+                }
+        
+        else {
             FILE *todo5 = fopen(FILENAME_TODO, "a");
             if (todo5 == NULL) {
                 printf("Error: Cannot open file.\n");
                 return 1;
             }
             // 写入任务标题（argv[2]），而非命令本身（argv[1]）
-            fprintf(todo5, "%s\n", argv[2]);
+            fprintf(todo5, "%ld|%s\n", (long)time(NULL), argv[2]);
             fclose(todo5);
             printf("Added: %s\n", argv[2]);
         }
-    } else if (strcmp(argv[1], "list") == 0) {
+    }
+    
+    //———————————————————————————————————————————————————————————————————————————
+    else if (strcmp(argv[1], "list") == 0) { //列表
         FILE *todo5 = fopen(FILENAME_TODO, "r");
         if (todo5 == NULL) {
             printf("NO CONTEXT\n");
@@ -81,7 +101,8 @@ int cmd_task(int argc, char *argv[]) {
         printf("----- todo list -----\n");
         // 修复原代码中 fgets 处未闭合的括号
         while (fgets(buffer, sizeof(buffer), todo5) != NULL) {
-            printf("%d. %s", id++, buffer);
+            char *title = strchr(buffer, '|');
+            printf("%d. %s", id++, title ? title + 1 : buffer);
         }
 
         if (id == 1) {
@@ -89,7 +110,10 @@ int cmd_task(int argc, char *argv[]) {
         }
 
         fclose(todo5);
-    } else if (strcmp(argv[1], "remove") == 0) {
+    }
+    
+    //————————————————————————————————————————————————————————————————————————————————
+    else if (strcmp(argv[1], "remove") == 0) { //删除
             if (argc < 3) {
                 printf("Error: PLEASE INPUT TASK ID\n");
                 return 1;
@@ -128,7 +152,10 @@ int cmd_task(int argc, char *argv[]) {
                 printf("Error: Task ID %d not found.\n", target_id);
             }
 
-        } else if (strcmp(argv[1], "edit") == 0) {
+        }
+    //————————————————————————————————————————————————————————————————————————————————————————————————————
+    
+    else if (strcmp(argv[1], "edit") == 0) { //编辑
             if (argc < 4) {
                 printf("Error: PLEASE INPUT TASK ID AND NEW TITLE\n");
                 return 1;
@@ -168,7 +195,9 @@ int cmd_task(int argc, char *argv[]) {
                 printf("Error: Task ID %d not found.\n", target_id);
             }
 
-        } else if (strcmp(argv[1], "done") == 0) {
+        }
+    //————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+    else if (strcmp(argv[1], "done") == 0) { //完成
             if (argc < 3) {
                 printf("Error: PLEASE INPUT TASK ID\n");
                 return 1;
@@ -210,8 +239,8 @@ int cmd_task(int argc, char *argv[]) {
                 remove(FILENAME_TASKS_TEMP);
                 printf("Error: Task ID %d not found.\n", target_id);
             }
-
-        } else if (strcmp(argv[1], "search") == 0) {
+//——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+        } else if (strcmp(argv[1], "search") == 0) { //搜索
             if (argc < 3) {
                 printf("Error: PLEASE INPUT KEYWORD\n");
                 return 1;
@@ -243,6 +272,55 @@ int cmd_task(int argc, char *argv[]) {
     return 0;
 }
 
+int time_task(void) {
+    // 48小时没打勾自动删除
+    FILE *fp = fopen(FILENAME_TODO, "r");
+    if (fp == NULL) return 0;
+
+    // 1. 读出文件内容，直接喂给你原本的 Create_List
+    ElemType raw[MaxTASKSIZE];
+    int n = 0;
+    while (n < MaxTASKSIZE && fgets(raw[n], sizeof(ElemType), fp) != NULL) {
+        raw[n][strcspn(raw[n], "\r\n")] = '\0';
+        n++;
+    }
+    fclose(fp);
+
+    SqList *L = NULL;
+    if (!Create_List(&L, raw, n)) return 0;
+
+    // 2. 在顺序表里检查并删掉超过 48 小时（172800 秒）的任务
+    time_t now = time(NULL);
+    int i = 0, removed = 0;
+    while (i < L->length) {
+        long task_time = strtol(L->data[i], NULL, 10);
+        if (task_time > 0 && (now - task_time) >= 48 * 3600) {
+            for (int j = i; j < L->length - 1; j++) {
+                strcpy(L->data[j], L->data[j + 1]);
+            }
+            L->length--;
+            removed++;
+        } else {
+            i++;
+        }
+    }
+
+    // 3. 如果有过期任务被删，直接覆盖写回 FILENAME_TODO
+    if (removed > 0) {
+        fp = fopen(FILENAME_TODO, "w");
+        if (fp != NULL) {
+            for (int k = 0; k < L->length; k++) {
+                fprintf(fp, "%s\n", L->data[k]);
+            }
+            fclose(fp);
+        }
+    }
+
+    free(L);
+    return removed;
+}
+
+//——————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 void init(void) {
     FILE *todo5 = fopen(FILENAME_TODO, "a");
     FILE *done = fopen(FILENAME_DONE, "a");
@@ -259,10 +337,21 @@ void init(void) {
 
 int main(int argc, char *argv[]) {
     init();
+    time_task();
 
     // 传入 argc 与 argv
     cmd_task(argc, argv);
+    
+    if (argc < 2){
+        printf("Notice: Please input ./Raster <order> used it.\n" );
+        printf("'Enter' to exit.");
+        getchar();
+    }
+    
+   
 
     return 0;
+    
+ 
 }
 
