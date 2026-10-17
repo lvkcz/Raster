@@ -22,9 +22,7 @@ typedef struct {
     int top;
 } STACK;
 
-void get_colors(uint8_t background) {
-    uint8_t original[] = {8, 255, 0, 255, 2, 255, 3, 255, 4};
-}
+
 
 // 顺序表创建：使用二级指针确保外部指针能拿到 malloc 分配的内存
 int Create_List(SqList **L, ElemType a[], int n) {
