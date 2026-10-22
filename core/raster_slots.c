@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include "color_hal.h"
+#include "raster_matrix.h"
 
 #define FILENAME_TODO "raster_todo.dat"
 #define FILENAME_TASKS_TEMP "raster_tasks.tmp"
@@ -49,10 +50,10 @@ int stack_task(void) {
 }
 
 
-int cmd_task(int argc, char *argv[]) { //CLI操作 一共有 add list remove edit done search help(没写)七种模式
+int cmd_task(int argc, char *argv[]) { //CLI操作 一共有 add list remove edit done search view help 八种模式
 
     if (argc < 2) return 1;
-//——————————————————————————————————————————————————————————————————————————————————
+//——————————————————————————————————————————————————————————————————————————————————分段便于查看
     if (strcmp(argv[1], "add") == 0) { //添加task 最大5个
         if (argc < 3) {
             printf("Error: PLEASE INPUT TASK TITLE\n");
@@ -103,7 +104,7 @@ int cmd_task(int argc, char *argv[]) { //CLI操作 一共有 add list remove edi
             int id = 1;
             time_t now = time(NULL);
 
-            set_color(COLOR_BLUE);
+            set_color(COLOR_BLUE); //上色
             printf("----- todo list -----\n");
             reset_color();
 
@@ -295,12 +296,25 @@ int cmd_task(int argc, char *argv[]) { //CLI操作 一共有 add list remove edi
             }
             fclose(todo5);
         }
-    else (strcmp(argv[1], "help") == 0); {
-        if (argc < 3) {
-            printf("Error: PLEASE INPUT KEYWORD\n");
-            return 1;
-        }
-        printf("");
+//——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+    else if (strcmp(argv[1], "view") == 0) {
+        return raster_matrix_view(FILENAME_DONE);
+    }
+//——————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+    else if (strcmp(argv[1], "help") == 0) { //帮助文档
+        printf("Usage: %s <command> [arguments]\n", argv[0]);
+        printf("  add <title>        Add a task\n");
+        printf("  list               List current tasks\n");
+        printf("  remove <id>        Remove a task\n");
+        printf("  edit <id> <title>  Rename a task\n");
+        printf("  done <id>          Complete a task\n");
+        printf("  search <keyword>   Search tasks\n");
+        printf("  view               Show completion matrix\n");
+    }
+//————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+    else {
+        printf("Error: Unknown command '%s'. Try '%s help'.\n", argv[1], argv[0]);
+        return 1;
     }
 
     return 0;
@@ -365,21 +379,21 @@ void init(void) {
         exit(EXIT_FAILURE);
     }
 
-    fclose(todo5);
+    fclose(todo5); //关闭文件
     fclose(done);
 }
 
-int main(int argc, char *argv[]) {
-    init();
-    time_task();
+int main(int argc, char *argv[]) { //argc是命令的数量 比如./Raster 数量是一个 ./Raster add是两个 ./Raster add 1是三个 1就是这个任务的名字 argv就是具体叫什么 比如 add done 便于传参
+    init(); //运行init函数
+    time_task(); //同理
 
     // 传入 argc 与 argv
     cmd_task(argc, argv);
     
     if (argc < 2){
-        printf("Notice: Please input ./Raster <order> used it.\n" );
+        printf("Notice: Please input ./Raster <order> used it.\n" ); //提示
         printf("'Enter' to exit.");
-        getchar();
+        getchar(); //停止
     }
     
    
